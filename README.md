@@ -11,6 +11,8 @@ vivo y ver cómo cambia el ramo.
 
 **→ [appstudiouniversal.com/YulizetRamirezLeal](https://appstudiouniversal.com/YulizetRamirezLeal/)**
 
+Escrito por **Diego Ramos** — [@Carter-Dieguino](https://github.com/Carter-Dieguino)
+
 ---
 
 ## Cómo está hecho
@@ -80,6 +82,25 @@ wrangler deploy
 Los nombres, las rutas y los textos están en el HTML y en `worker.js`; se
 cambian buscando y reemplazando.
 
+## Créditos
+
+Todo el código —el motor de curvas, el editor de ecuaciones en vivo, los
+epiciclos de Fourier, el modo 3D, el herbario, las mascotas del lienzo y el
+buzón de cartas— está escrito por **Diego Ramos**
+([@Carter-Dieguino](https://github.com/Carter-Dieguino)).
+
+Las matemáticas, en cambio, son de mucha gente:
+
+- Las diez flores del herbario vienen del libro
+  [*Flores 3D*](https://www.geogebra.org/m/ct3jebjc) de **Débora Pereiro
+  Carbajo**, en GeoGebra. Aquí se rehicieron como curvas paramétricas propias:
+  en el applet original cada flor es una superficie reglada, y lo que este
+  motor rellena es su curva de borde.
+- La concoide de rosetón y varias curvas más siguen a
+  [**MathFlowers**](https://community.appinventor.mit.edu/t/free-mathflowers-lets-create-beautiful-mathematical-flower-patterns-on-a-canvas/142630).
+- La curva mariposa es de Temple H. Fay (1989); la superfórmula, de Johan
+  Gielis (2003); la lemniscata, de Jacob Bernoulli (1694).
+
 ## Licencia
 
 MIT. Haz lo que quieras con el código.
@@ -89,3 +110,4 @@ Los textos de las cartas y la dedicatoria no: esos son de quien los escribió.
 ---
 
 *Es imposible ser matemático sin tener alma de poeta.*
+— Diego Ramos
