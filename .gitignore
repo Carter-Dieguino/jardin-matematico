@@ -1,0 +1,8 @@
+# La clave del respaldo y las copias de las cartas NUNCA a un repositorio
+bridge/.secretos/
+bridge/.dev.vars
+respaldos/
+
+.wrangler/
+node_modules/
+.DS_Store

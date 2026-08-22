@@ -1,0 +1,3 @@
+# Jardín privado. No es para buscadores.
+User-agent: *
+Disallow: /

@@ -1,0 +1,20 @@
+/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+# El documento NO se cachea una hora: si no, tras desplegar el buzón
+# ella seguiría viendo la página vieja hasta 60 minutos y el aviso de
+# cartas nuevas mentiría. must-revalidate deja que el navegador
+# pregunte y se ahorre la descarga si no cambió nada.
+/YulizetRamirezLeal/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Los assets sí: llevan nombre estable y pesan.
+/YulizetRamirezLeal/assets/*
+  Cache-Control: public, max-age=86400
+
+# La API la atiende el Worker y nunca llega hasta aquí, pero si algún
+# día una ruta se escapa, que no se quede cacheada por el camino.
+/YulizetRamirezLeal/api/*
+  Cache-Control: no-store

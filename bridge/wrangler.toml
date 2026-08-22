@@ -1,0 +1,41 @@
+name = "jardin-yulizet-proxy"
+main = "worker.js"
+compatibility_date = "2026-07-24"
+workers_dev = false
+
+[observability]
+enabled = true
+
+# ── Buzón de cartas ────────────────────────────────────────────
+# Las cartas en D1; los bytes de las fotos en R2 (una fila de D1
+# no puede pasar de 2 MB y una foto de móvil se lo come entero).
+[[d1_databases]]
+binding        = "DB"
+database_name  = "jardin-cartas"
+database_id    = "01458d7d-ce15-43ac-90e4-374afdc1bb3c"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding     = "FOTOS"
+bucket_name = "jardin-cartas-fotos"
+
+[vars]
+ORIGEN_CANONICO = "https://appstudiouniversal.com"
+TZ_CASA         = "America/Mexico_City"
+
+# 09:00 UTC = 03:00 en CDMX: limpia contadores viejos del portero
+# y fotos subidas que nunca llegaron a enviarse en una carta.
+[triggers]
+crons = ["0 9 * * *"]
+
+# ── Rutas ──────────────────────────────────────────────────────
+# NO TOCAR. El comodín de sufijo ya cubre /YulizetRamirezLeal/api/*,
+# asi que la API no necesita ninguna ruta nueva y la convivencia
+# con appuniversal-api (ruta menos especifica) se queda como estaba.
+[[routes]]
+pattern = "appstudiouniversal.com/YulizetRamirezLeal*"
+zone_name = "appstudiouniversal.com"
+
+[[routes]]
+pattern = "appstudiouniversal.com/YulizetRamirezLeal/*"
+zone_name = "appstudiouniversal.com"

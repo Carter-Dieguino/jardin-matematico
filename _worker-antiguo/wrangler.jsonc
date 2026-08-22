@@ -1,0 +1,10 @@
+{
+  "name": "yulizet-ramirez-proxy",
+  "main": "proxy-worker.js",
+  "compatibility_date": "2026-03-09",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "."
+  }
+}
