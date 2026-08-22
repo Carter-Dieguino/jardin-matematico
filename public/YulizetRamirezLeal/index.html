@@ -1042,6 +1042,8 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35)}
 
     <div class="hr"></div>
     <div class="insight" id="insight-box">—</div>
+    <a class="ins-src" id="repo-link" target="_blank" rel="noopener noreferrer"
+       href="https://github.com/Carter-Dieguino/jardin-matematico"></a>
   </div>
 
   <!-- El reproductor se crea al pulsar play y se destruye al pausar:
@@ -1181,6 +1183,7 @@ const I18N = {
     sl_dome:'altura de la cúpula',sl_elev:'elevación de cámara',
     pets_lbl:'=^.^= mascotas',
     canvas_info:'jardín.matemático(yulizet) · curvas · topología · belleza',
+    repo:'↗ TODO ESTE JARDÍN, POR DENTRO · GITHUB',
     canvas_info_s:'jardín.matemático(yulizet)',
     letter_btn:'✦ para ti',letter_back:'← volver al jardín',
     mail_btn:'✉ cartas',mail_btn_new:'✉ cartas',
@@ -1272,6 +1275,7 @@ const I18N = {
     sl_dome:'dome height',sl_elev:'camera elevation',
     pets_lbl:'=^.^= pets',
     canvas_info:'mathematical.garden(yulizet) · curves · topology · beauty',
+    repo:'↗ THIS WHOLE GARDEN, INSIDE OUT · GITHUB',
     canvas_info_s:'mathematical.garden(yulizet)',
     letter_btn:'✦ for you',letter_back:'← back to the garden',
     mail_btn:'✉ letters',mail_btn_new:'✉ letters',
@@ -3035,6 +3039,7 @@ function applyLang(){
   document.getElementById('footer-text').textContent = t('footer');
   document.getElementById('footer-sig').textContent  = t('footer_sig');
   document.getElementById('canvas-info').textContent = MOBILE ? t('canvas_info_s') : t('canvas_info');
+  const rp = document.getElementById('repo-link'); if(rp) rp.textContent = t('repo');
   const mb = document.getElementById('btn-music');
   if(mb) mb.textContent = musicOn ? t('music_pause') : t('music_play');
   // las etiquetas de las tres vistas las lleva syncViewLabels()
