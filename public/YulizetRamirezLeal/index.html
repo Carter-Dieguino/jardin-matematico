@@ -4048,6 +4048,7 @@ function tarjetaCarta(c){
 function filaCarta(c){
   const fila = document.createElement('div');
   fila.className = 'mail-fila';
+  fila.dataset.carta = c.id;
   fila.appendChild(tarjetaCarta(c));
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'mail-share';
@@ -4083,7 +4084,6 @@ function tarjetaSimple(clase, arriba, fecha, linea, onClick, extra){
 function pintarLista(){
   const cont = document.getElementById('mail-cards');
   if(!cont) return;
-  cerrarMenu(false);          // su boton esta a punto de dejar de existir
   cont.innerHTML = '';        // aqui solo hay tarjetas: ningun <textarea> que destruir
   const frag = document.createDocumentFragment();
   const arch = MAIL.verArchivadas;
@@ -4114,9 +4114,25 @@ function pintarLista(){
     const p = document.createElement('p');
     p.className = 'mail-vacio'; p.textContent = arch ? t('mail_arch_vacio') : t('mail_vacio');
     cont.appendChild(p);
+    reanclarMenu();
     return;
   }
   cont.appendChild(frag);
+  reanclarMenu();
+}
+
+// Repintar la lista destruye el boton al que estaba pegado el menu, y
+// la lista se repinta sola al entrar al buzon. Cerrarlo ahi se lee
+// como un parpadeo sin motivo, asi que se reengancha al boton de la
+// misma carta; si esa carta ya no esta en la vista, entonces si cierra.
+function reanclarMenu(){
+  if(!MAIL.menu) return;
+  const filas = document.querySelectorAll('#mail-cards .mail-fila');
+  let nuevo = null;
+  for(const f of filas) if(f.dataset.carta === MAIL.menu.id) nuevo = f.querySelector('.mail-share');
+  if(!nuevo){ cerrarMenu(false); return; }
+  MAIL.menu.ancla = nuevo;
+  colocarMenu(MAIL.menu.caja, nuevo);
 }
 
 // El boton del archivo no existe hasta que hay algo archivado: una
@@ -4236,9 +4252,12 @@ function compartirCarta(c, st, ancla){
   document.body.appendChild(caja);
   colocarMenu(caja, ancla);
 
-  const fuera = e => { if(!caja.contains(e.target) && e.target !== ancla) cerrarMenu(false); };
+  const fuera = e => {
+    const a = MAIL.menu ? MAIL.menu.ancla : null;
+    if(!caja.contains(e.target) && e.target !== a) cerrarMenu(false);
+  };
   const rodar = () => cerrarMenu(false);
-  MAIL.menu = { caja, ancla, fuera, rodar };
+  MAIL.menu = { caja, ancla, fuera, rodar, id: c.id };
   // Los oyentes se arman en el siguiente fotograma: armados ya, el
   // propio toque que abre el menu lo cerraria de vuelta.
   requestAnimationFrame(() => {
