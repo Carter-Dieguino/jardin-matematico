@@ -533,6 +533,23 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35)}
 }
 .mail-share:hover{ color:#2b2016;border-color:#8a6b2e;transform:translateY(-1px) }
 .mail-share:focus-visible{ outline:2px solid var(--gold);outline-offset:2px }
+/* El menu de compartir. Va pegado al <body> y en position:fixed a
+   proposito: dentro de la lista lo recortaria el overflow del buzon.
+   Por encima de .mail-wrap, que vive en z-index 60. */
+.mail-menu{
+  position:fixed;z-index:70;min-width:12rem;max-width:calc(100vw - 1rem);padding:.3rem;
+  display:flex;flex-direction:column;gap:.12rem;
+  background-color:#ece2cc;border:1px solid rgba(120,95,55,.45);border-radius:4px;
+  box-shadow:0 16px 38px rgba(0,0,0,.5)
+}
+.mail-menu > *{
+  display:block;width:100%;text-align:left;padding:.55rem .65rem;
+  border:0;border-radius:3px;background:none;color:#2b2016;cursor:pointer;
+  text-decoration:none;white-space:nowrap;
+  font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.04em
+}
+.mail-menu > *:hover{ background-color:#ddd0b3 }
+.mail-menu > *:focus-visible{ outline:2px solid var(--gold);outline-offset:-2px }
 /* Sobres de papel, misma excepcion de color deliberada que la hoja */
 .mail-card{
   display:flex;align-items:flex-start;gap:.7rem;text-align:left;width:100%;
@@ -874,6 +891,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35)}
   .mail-body{ padding:.6rem 1.05rem calc(1.4rem + env(safe-area-inset-bottom)) }
   .mail-card{ min-height:44px }
   .mail-share{ min-width:44px }
+  .mail-menu > *{ min-height:44px;display:flex;align-items:center }
   .mail-key,.mail-campo,.mail-date{ min-height:44px }
   .mail-thumb{ width:64px;height:64px }
   /* En iOS el teclado NO encoge el layout viewport, solo el visual:
@@ -1275,6 +1293,9 @@ const I18N = {
     mail_share_titulo:'Una carta del jardín',
     mail_share_copiado:'enlace copiado · quien lo abra tendrá que poner su fecha',
     mail_share_manual:'copia este enlace: ',
+    mail_share_wa:'✆ mandar por WhatsApp',
+    mail_share_copiar:'⧉ copiar el enlace',
+    mail_share_mas:'⋯ otras aplicaciones',
     mail_share_espera:'Te compartieron una carta. Escribe tu fecha y te la abro.',
     mail_share_no:'esa carta no está en este buzón',
     mail_upload:'⇪ subir un .txt',
@@ -1390,6 +1411,9 @@ const I18N = {
     mail_share_titulo:'A letter from the garden',
     mail_share_copiado:'link copied · whoever opens it still has to type their date',
     mail_share_manual:'copy this link: ',
+    mail_share_wa:'✆ send on WhatsApp',
+    mail_share_copiar:'⧉ copy the link',
+    mail_share_mas:'⋯ other apps',
     mail_share_espera:'Someone shared a letter with you. Type your date and I will open it.',
     mail_share_no:'that letter is not in this mailbox',
     mail_upload:'⇪ upload a .txt',
@@ -3700,7 +3724,7 @@ const MAIL = {
   cargando:false, enviando:false, confirmando:false, confTimer:null,
   ultimaCarga:0, foco:null, borrTimer:null,
   verArchivadas:false, confirmandoBorr:false, borrConfTimer:null,
-  pendiente:null,
+  pendiente:null, menu:null,
 };
 
 function MailErr(codigo, status, data){
@@ -3801,6 +3825,7 @@ function setMailState(st){
   const w = document.getElementById('mail-wrap');
   if(!w) return;
   w.dataset.state = st;
+  cerrarMenu(false);
   const back = document.getElementById('mail-back');
   back.textContent = (st === 'read' || st === 'write') ? t('mail_back_list') : t('mail_back');
   if(st !== 'read') soltarFotos();
@@ -4030,7 +4055,7 @@ function filaCarta(c){
   b.title = t('mail_share_aria');
   b.setAttribute('aria-label', t('mail_share_aria'));
   b.addEventListener('click', () =>
-    compartirCarta(c, document.getElementById('mail-list-status')));
+    compartirCarta(c, document.getElementById('mail-list-status'), b));
   fila.appendChild(b);
   return fila;
 }
@@ -4058,6 +4083,7 @@ function tarjetaSimple(clase, arriba, fecha, linea, onClick, extra){
 function pintarLista(){
   const cont = document.getElementById('mail-cards');
   if(!cont) return;
+  cerrarMenu(false);          // su boton esta a punto de dejar de existir
   cont.innerHTML = '';        // aqui solo hay tarjetas: ningun <textarea> que destruir
   const frag = document.createDocumentFragment();
   const arch = MAIL.verArchivadas;
@@ -4128,23 +4154,112 @@ function limpiarEnlace(){
   try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}
 }
 
-async function compartirCarta(c, st){
+// Antes esto decidia solo: hoja del sistema si existia, portapapeles
+// si no. En un Mac la hoja del sistema no ofrece WhatsApp y el enlace
+// se copiaba sin preguntar, asi que ahora las opciones se enseñan.
+function cerrarMenu(devolverFoco){
+  if(!MAIL.menu) return;
+  const { caja, ancla, fuera, rodar } = MAIL.menu;
+  MAIL.menu = null;
+  document.removeEventListener('pointerdown', fuera, true);
+  window.removeEventListener('scroll', rodar, true);
+  window.removeEventListener('resize', rodar);
+  caja.remove();
+  if(devolverFoco && ancla && ancla.isConnected){ try{ ancla.focus(); }catch(e){} }
+}
+
+// Pegado al boton, y dentro de la pantalla aunque el boton este abajo
+// del todo o pegado al borde derecho.
+function colocarMenu(caja, ancla){
+  const a = ancla.getBoundingClientRect();
+  const m = caja.getBoundingClientRect();
+  const margen = 8;
+  let x = a.right - m.width;
+  let y = a.bottom + 6;
+  if(y + m.height > innerHeight - margen) y = a.top - m.height - 6;
+  // Sujeto a la pantalla en los dos ejes. Un boton no se puede pulsar
+  // si no se ve, pero un menu que se dibuja fuera no avisa de nada.
+  y = Math.min(Math.max(margen, y), Math.max(margen, innerHeight - m.height - margen));
+  x = Math.min(Math.max(margen, x), Math.max(margen, innerWidth - m.width - margen));
+  caja.style.left = Math.round(x) + 'px';
+  caja.style.top  = Math.round(y) + 'px';
+}
+
+function compartirCarta(c, st, ancla){
   if(!c || !c.id) return;
+  if(MAIL.menu && MAIL.menu.ancla === ancla){ cerrarMenu(true); return; }   // el mismo boton, otra vez: se cierra
+  cerrarMenu(false);
   const url = enlaceCarta(c.id);
   // De una carta sellada solo se puede contar lo que se lee por fuera
   // del sobre; de una abierta, su titulo. Nunca el cuerpo.
   const linea = (c.sellada ? c.sobre : c.titulo) || t('mail_share_titulo');
-  st.className = 'mail-status';
-  // navigator.share EXIGE salir del toque: nada de await antes de el
-  try{
-    if(navigator.share){
-      await navigator.share({ title: t('mail_share_titulo'), text: linea, url });
-      st.textContent = '';
-      return;
-    }
-  }catch(e){
-    if(e && e.name === 'AbortError'){ st.textContent = ''; return; }   // cerro la hoja de compartir
+  st.className = 'mail-status'; st.textContent = '';
+
+  const caja = document.createElement('div');
+  caja.className = 'mail-menu';
+  caja.setAttribute('role', 'menu');
+  caja.setAttribute('aria-label', t('mail_share_aria'));
+
+  // WhatsApp es un enlace de verdad, no un window.open: asi el navegador
+  // lo abre como cualquier otro y ningun bloqueador se mete por medio.
+  const wa = document.createElement('a');
+  wa.href = 'https://wa.me/?text=' + encodeURIComponent(linea + '\n' + url);
+  wa.target = '_blank'; wa.rel = 'noopener noreferrer';
+  wa.textContent = t('mail_share_wa');
+  wa.setAttribute('role', 'menuitem');
+  wa.addEventListener('click', () => cerrarMenu(false));
+  caja.appendChild(wa);
+
+  const cop = document.createElement('button');
+  cop.type = 'button'; cop.textContent = t('mail_share_copiar');
+  cop.setAttribute('role', 'menuitem');
+  cop.addEventListener('click', () => { cerrarMenu(true); copiarEnlace(url, st); });
+  caja.appendChild(cop);
+
+  // La hoja del sistema sigue estando, pero ahora como una opcion mas
+  // y solo donde de verdad existe.
+  if(navigator.share){
+    const mas = document.createElement('button');
+    mas.type = 'button'; mas.textContent = t('mail_share_mas');
+    mas.setAttribute('role', 'menuitem');
+    mas.addEventListener('click', () => {
+      cerrarMenu(true);
+      // navigator.share EXIGE salir del toque: se llama ya, sin await antes
+      try{
+        const p = navigator.share({ title: t('mail_share_titulo'), text: linea, url });
+        if(p && p.catch) p.catch(() => {});     // cerrar la hoja no es un fallo
+      }catch(e){}
+    });
+    caja.appendChild(mas);
   }
+
+  document.body.appendChild(caja);
+  colocarMenu(caja, ancla);
+
+  const fuera = e => { if(!caja.contains(e.target) && e.target !== ancla) cerrarMenu(false); };
+  const rodar = () => cerrarMenu(false);
+  MAIL.menu = { caja, ancla, fuera, rodar };
+  // Los oyentes se arman en el siguiente fotograma: armados ya, el
+  // propio toque que abre el menu lo cerraria de vuelta.
+  requestAnimationFrame(() => {
+    if(!MAIL.menu || MAIL.menu.caja !== caja) return;
+    document.addEventListener('pointerdown', fuera, true);
+    window.addEventListener('scroll', rodar, true);
+    window.addEventListener('resize', rodar);
+  });
+  caja.addEventListener('keydown', e => {
+    if(e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const items = Array.prototype.slice.call(caja.children);
+    const i = items.indexOf(document.activeElement);
+    const n = (i + (e.key === 'ArrowDown' ? 1 : items.length - 1) + items.length) % items.length;
+    items[n].focus({ preventScroll: true });
+  });
+  try{ wa.focus({ preventScroll: true }); }catch(e){}
+}
+
+async function copiarEnlace(url, st){
+  st.className = 'mail-status';
   try{
     // writeText se queda colgada en algunos navegadores esperando un
     // permiso que nadie llega a ver. Sin este plazo, el boton no diria
@@ -4161,6 +4276,7 @@ async function compartirCarta(c, st){
     st.textContent = t('mail_share_manual') + url;
   }
 }
+
 
 // Al llegar por un enlace: se abre el buzon, se pide la fecha si hace
 // falta y en cuanto hay sesion se abre ESA carta. La lista queda
@@ -5169,7 +5285,10 @@ window.addEventListener('hashchange', () => {
 
 // ── cableado ─────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if(e.key === 'Escape' && vistaActual() === 'cartas'){ e.preventDefault(); volverAtras(); }
+  if(e.key === 'Escape' && vistaActual() === 'cartas'){
+    e.preventDefault();
+    if(MAIL.menu) cerrarMenu(true); else volverAtras();   // primero el menu, luego la carta
+  }
 });
 document.getElementById('mail-go').addEventListener('click', entrar);
 document.getElementById('mail-key').addEventListener('keydown', e => {
@@ -5248,8 +5367,8 @@ function marcarImpresion(on){
 // beforeprint cubre tanto el botón como el Cmd+P del navegador
 window.addEventListener('beforeprint', () => marcarImpresion(listoParaImprimir()));
 window.addEventListener('afterprint',  () => marcarImpresion(false));
-document.getElementById('mail-compartir').addEventListener('click', () => {
-  compartirCarta(MAIL.leida, document.getElementById('mail-pdf-status'));
+document.getElementById('mail-compartir').addEventListener('click', e => {
+  compartirCarta(MAIL.leida, document.getElementById('mail-pdf-status'), e.currentTarget);
 });
 document.getElementById('mail-print').addEventListener('click', () => {
   // Safari en iOS no siempre dispara beforeprint: se pone a mano también
