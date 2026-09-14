@@ -252,6 +252,7 @@ function comoCarta(f) {
     creada: f.creada_en, abre: f.abre_en, abre_el: f.abre_el,
     abierta_en: f.abierta_en ?? null,
     sobre: f.sobre ?? null,
+    archivada: !!f.archivada,
   };
   if (sellada) return base;
   return {
@@ -441,6 +442,8 @@ async function api(request, env, url, ctx) {
     const { results } = await env.DB.prepare(`
       SELECT c.id, c.de, c.para, c.sobre, c.creada_en, c.abre_en, c.abre_el, c.abierta_en,
              ${vis} AS visible,
+             EXISTS(SELECT 1 FROM archivadas a
+                     WHERE a.carta_id = c.id AND a.quien = ?1) AS archivada,
              CASE WHEN ${vis} THEN c.titulo END                    AS titulo,
              CASE WHEN ${vis} THEN substr(c.cuerpo, 1, 150) END    AS extracto,
              CASE WHEN ${vis} THEN length(c.cuerpo) END            AS longitud,
@@ -463,6 +466,8 @@ async function api(request, env, url, ctx) {
       SELECT c.id, c.de, c.para, c.titulo, c.sobre, c.cuerpo, c.creada_en,
              c.abre_en, c.abre_el, c.abierta_en, 1 AS visible,
              c.lugar, c.saludo, c.despedida, c.firma,
+             EXISTS(SELECT 1 FROM archivadas a
+                     WHERE a.carta_id = c.id AND a.quien = ?1) AS archivada,
              length(c.cuerpo) AS longitud
       FROM cartas c
       WHERE c.id = ?3 AND ${vis}
@@ -521,6 +526,7 @@ async function api(request, env, url, ctx) {
     ).bind(id).all();
     // fotos primero: su trigger mira la carta, que todavía existe
     await env.DB.batch([
+      env.DB.prepare('DELETE FROM archivadas WHERE carta_id = ?1').bind(id),
       env.DB.prepare('DELETE FROM fotos WHERE carta_id = ?1').bind(id),
       env.DB.prepare(
         'DELETE FROM cartas WHERE id = ?1 AND de = ?2 AND abierta_en IS NULL',
@@ -528,6 +534,31 @@ async function api(request, env, url, ctx) {
     ]);
     for (const f of (fs || [])) { try { await env.FOTOS.delete(f.clave); } catch (e) {} }
     return json({ ok: true, id, server_now: ahora() });
+  }
+
+  // ── archivar / sacar del archivo ────────────────────────────
+  // Ni borra ni edita: solo aparta la carta de la vista de quien lo
+  // pide. Es lo unico de una carta enviada que se puede deshacer
+  // siempre, la haya leido ya o no.
+  const mArch = ruta.match(/^\/cartas\/([\w-]{1,64})\/archivo$/);
+  if (mArch && (metodo === 'POST' || metodo === 'DELETE')) {
+    const id = mArch[1];
+    // Solo el cuerpo esta bajo llave: quien la escribio o quien la
+    // recibe puede archivarla aunque todavia no sea su dia.
+    const c = await env.DB.prepare('SELECT de, para FROM cartas WHERE id = ?1').bind(id).first();
+    if (!c || (c.de !== yo && c.para !== yo)) return err('no_existe', 'Esa carta no está aquí.', 404);
+    const archivar = metodo === 'POST';
+    if (archivar) {
+      await env.DB.prepare(
+        `INSERT INTO archivadas (carta_id, quien, ts) VALUES (?1, ?2, ?3)
+         ON CONFLICT(carta_id, quien) DO NOTHING`,
+      ).bind(id, yo, ahora()).run();
+    } else {
+      await env.DB.prepare(
+        'DELETE FROM archivadas WHERE carta_id = ?1 AND quien = ?2',
+      ).bind(id, yo).run();
+    }
+    return json({ ok: true, id, archivada: archivar, server_now: ahora() });
   }
 
   // ── foto de una carta ───────────────────────────────────────

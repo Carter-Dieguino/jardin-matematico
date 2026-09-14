@@ -44,11 +44,21 @@ Algunas decisiones que quizá te interesen si vienes a leer el código:
 - **El sello no es una promesa del código, son triggers de SQLite.** Una carta
   leída no se puede editar ni borrar, ni desde la API ni desde la consola de
   administración. Se puede *retirar* mientras la otra persona no la haya
-  abierto; después, jamás.
+  abierto; después, jamás. Mientras siga sin abrir también se puede
+  *devolver a borrador*, que es retirarla sin perderla: vuelve al borrador
+  con su título, su fecha y sus fotos.
+- **Archivar no toca la carta.** Es una marca en una tabla aparte, con el
+  nombre de quien archiva: cada persona aparta su propia vista, la otra
+  sigue viendo la suya, y se deshace siempre —también con las ya leídas.
 - **El candado de fecha vive en el `WHERE` del SQL**, no en el navegador. El
   cuerpo y las fotos de una carta con fecha futura no salen de la base de
   datos. Esconderlo solo en el cliente sería teatro: se rompería la sorpresa
   con la pestaña de red abierta.
+- **El enlace de una carta no es una puerta trasera.** Compartir una carta da
+  una dirección con el id en el fragmento (`#carta=…`), que no llega al
+  servidor ni acaba en el Referer de nadie. Quien la abra tiene que escribir
+  su fecha de nacimiento igual que siempre, y una vez dentro entra al buzón
+  entero: la carta del enlace se abre sola y detrás están todas las demás.
 - **La bandeja de salida es durable.** La carta se guarda en el teléfono
   *antes* de tocar la red y no se borra hasta que el servidor la acusa. Sin
   cobertura no se pierde ninguna.

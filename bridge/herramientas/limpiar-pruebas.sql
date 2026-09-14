@@ -11,6 +11,7 @@ DROP TRIGGER IF EXISTS tg_cartas_abrir_una_vez;
 DROP TRIGGER IF EXISTS tg_fotos_no_editar;
 DROP TRIGGER IF EXISTS tg_fotos_no_borrar;
 DELETE FROM fotos;
+DELETE FROM archivadas;
 DELETE FROM cartas;
 DELETE FROM accesos;
 DELETE FROM intentos;

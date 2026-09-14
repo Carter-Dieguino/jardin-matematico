@@ -520,6 +520,19 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35)}
 
 .mail-list-acts{ display:flex;gap:.5rem;flex-wrap:wrap;flex-shrink:0;align-items:center }
 .mail-cards{ display:flex;flex-direction:column;gap:.45rem;margin-top:.7rem }
+/* Cada sobre lleva al lado su boton de compartir. Va FUERA de la
+   tarjeta a proposito: un <button> dentro de otro no es HTML valido y
+   un lector de pantalla anunciaria uno solo de los dos. */
+.mail-fila{ display:flex;align-items:stretch;gap:.4rem }
+.mail-fila > .mail-card{ flex:1 1 auto;width:auto;min-width:0 }
+.mail-share{
+  flex-shrink:0;width:2.4rem;border:1px solid rgba(120,95,55,.3);border-radius:3px;
+  background-color:#e5dcc6;color:#8a6b2e;cursor:pointer;transition:all .16s;
+  font-family:'JetBrains Mono',monospace;font-size:.95rem;line-height:1;
+  box-shadow:0 6px 16px rgba(0,0,0,.3)
+}
+.mail-share:hover{ color:#2b2016;border-color:#8a6b2e;transform:translateY(-1px) }
+.mail-share:focus-visible{ outline:2px solid var(--gold);outline-offset:2px }
 /* Sobres de papel, misma excepcion de color deliberada que la hoja */
 .mail-card{
   display:flex;align-items:flex-start;gap:.7rem;text-align:left;width:100%;
@@ -860,6 +873,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35)}
   .mail-head{ padding:.9rem 1.05rem .3rem }
   .mail-body{ padding:.6rem 1.05rem calc(1.4rem + env(safe-area-inset-bottom)) }
   .mail-card{ min-height:44px }
+  .mail-share{ min-width:44px }
   .mail-key,.mail-campo,.mail-date{ min-height:44px }
   .mail-thumb{ width:64px;height:64px }
   /* En iOS el teclado NO encoge el layout viewport, solo el visual:
@@ -1088,6 +1102,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35)}
           <button class="act-btn primary" id="mail-new" type="button"></button>
           <button class="act-btn" id="mail-refresh" type="button"></button>
           <button class="act-btn" id="mail-all" type="button"></button>
+          <button class="act-btn" id="mail-arch" type="button" hidden></button>
           <button class="act-btn" id="mail-out" type="button"></button>
         </div>
         <p class="mail-status" id="mail-list-status" aria-live="polite"></p>
@@ -1111,6 +1126,9 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35)}
           <div class="mail-opts" style="margin-top:1.4rem">
             <button class="act-btn" id="mail-pdf" type="button"></button>
             <button class="act-btn" id="mail-print" type="button"></button>
+            <button class="act-btn" id="mail-compartir" type="button"></button>
+            <button class="act-btn" id="mail-archivar" type="button"></button>
+            <button class="act-btn" id="mail-borrador" type="button" hidden></button>
             <button class="act-btn peligro" id="mail-retirar" type="button" hidden></button>
             <span class="mail-cuenta" id="mail-pdf-status" aria-live="polite"></span>
           </div>
@@ -1146,6 +1164,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35)}
         <div class="mail-thumbs" id="mail-thumbs"></div>
         <div class="mail-actions">
           <span class="mail-status" id="mail-w-status" aria-live="polite"></span>
+          <button class="act-btn" id="mail-guardar" type="button" hidden></button>
           <button class="act-btn primary" id="mail-send" type="button"></button>
         </div>
       </div>
@@ -1202,6 +1221,21 @@ const I18N = {
     mail_retirar_sure:'✕ ¿seguro? se borra para siempre',
     mail_retirada:'carta retirada',
     mail_retirar_tarde:'ya la leyó: esta carta ya no se puede retirar',
+    mail_a_borrador:'↩ devolver a borrador',
+    mail_a_borrador_sure:'↩ ¿seguro? sale del buzón y vuelve a ser tuya',
+    mail_a_borrador_pisa:'↩ ¿seguro? pisa el borrador que ya tienes',
+    mail_a_borrador_yendo:'devolviéndola a borrador…',
+    mail_a_borrador_ok:'vuelve a ser un borrador · sigue escribiéndola cuando quieras',
+    mail_a_borrador_tarde:'ya la leyó: esta carta ya no vuelve a borrador',
+    mail_archivar:'⌸ archivar',
+    mail_desarchivar:'⌸ sacar del archivo',
+    mail_archivada:'guardada en el archivo',
+    mail_desarchivada:'de vuelta en el buzón',
+    mail_arch_ver:'⌸ archivadas · ',
+    mail_arch_salir:'← volver al buzón',
+    mail_arch_vacio:'El archivo está vacío.',
+    mail_guardar:'✎ guardar como borrador',
+    mail_guardado:'guardado como borrador · aquí sigue cuando vuelvas',
     mail_flecha:' → ',
     mail_lock_txt:'Este buzón se abre con tu fecha de nacimiento.',
     mail_lock_ph:'dd/mm/aaaa',mail_lock_go:'entrar',
@@ -1235,6 +1269,14 @@ const I18N = {
     mail_foto_sube:'subiendo foto…',mail_foto_err:'esa foto no pude subirla',
     mail_foto_max:'caben 4 fotos por carta',
     mail_print:'⎙ imprimir esta carta',
+    mail_compartir:'⇗ compartir esta carta',
+    mail_share_icono:'⇗',
+    mail_share_aria:'compartir esta carta',
+    mail_share_titulo:'Una carta del jardín',
+    mail_share_copiado:'enlace copiado · quien lo abra tendrá que poner su fecha',
+    mail_share_manual:'copia este enlace: ',
+    mail_share_espera:'Te compartieron una carta. Escribe tu fecha y te la abro.',
+    mail_share_no:'esa carta no está en este buzón',
     mail_upload:'⇪ subir un .txt',
     mail_out:'⎋ salir',
     mail_se_abre:'se abre el ',
@@ -1294,6 +1336,21 @@ const I18N = {
     mail_retirar_sure:'✕ sure? this deletes it forever',
     mail_retirada:'letter taken back',
     mail_retirar_tarde:'already read: this letter cannot be taken back',
+    mail_a_borrador:'↩ back to a draft',
+    mail_a_borrador_sure:'↩ sure? it leaves the mailbox and is yours again',
+    mail_a_borrador_pisa:'↩ sure? this overwrites the draft you have',
+    mail_a_borrador_yendo:'turning it back into a draft…',
+    mail_a_borrador_ok:'it is a draft again · keep writing whenever you like',
+    mail_a_borrador_tarde:'already read: this letter cannot go back to a draft',
+    mail_archivar:'⌸ archive',
+    mail_desarchivar:'⌸ take out of the archive',
+    mail_archivada:'kept in the archive',
+    mail_desarchivada:'back in the mailbox',
+    mail_arch_ver:'⌸ archived · ',
+    mail_arch_salir:'← back to the mailbox',
+    mail_arch_vacio:'The archive is empty.',
+    mail_guardar:'✎ save as a draft',
+    mail_guardado:'saved as a draft · it will be here when you come back',
     mail_flecha:' → ',
     mail_lock_txt:'This mailbox opens with your date of birth.',
     mail_lock_ph:'dd/mm/yyyy',mail_lock_go:'enter',
@@ -1327,6 +1384,14 @@ const I18N = {
     mail_foto_sube:'uploading photo…',mail_foto_err:'I could not upload that photo',
     mail_foto_max:'4 photos per letter',
     mail_print:'⎙ print this letter',
+    mail_compartir:'⇗ share this letter',
+    mail_share_icono:'⇗',
+    mail_share_aria:'share this letter',
+    mail_share_titulo:'A letter from the garden',
+    mail_share_copiado:'link copied · whoever opens it still has to type their date',
+    mail_share_manual:'copy this link: ',
+    mail_share_espera:'Someone shared a letter with you. Type your date and I will open it.',
+    mail_share_no:'that letter is not in this mailbox',
     mail_upload:'⇪ upload a .txt',
     mail_out:'⎋ sign out',
     mail_se_abre:'opens on ',
@@ -3611,7 +3676,7 @@ const MAIL_ORIGEN = 'https://appstudiouniversal.com';
 // El Worker solo vive en el dominio propio: por pages.dev la API no
 // existe y el buzon pareceria roto sin motivo aparente.
 if(/\.pages\.dev$/i.test(location.hostname)){
-  location.replace(MAIL_ORIGEN + location.pathname + location.search);
+  location.replace(MAIL_ORIGEN + location.pathname + location.search + location.hash);
 }
 const MAIL_API = (location.hostname === 'appstudiouniversal.com')
   ? './api/v1'
@@ -3634,6 +3699,8 @@ const MAIL = {
   fotos:[], urls:[], leida:null, ciudad:null,
   cargando:false, enviando:false, confirmando:false, confTimer:null,
   ultimaCarga:0, foco:null, borrTimer:null,
+  verArchivadas:false, confirmandoBorr:false, borrConfTimer:null,
+  pendiente:null,
 };
 
 function MailErr(codigo, status, data){
@@ -3749,6 +3816,7 @@ function soltarFotos(){
 }
 
 function abrirBuzon(){
+  MAIL.verArchivadas = false;      // se entra por el buzón, no por el archivo
   if(!MAIL.token){
     setMailState('lock');
     setTimeout(() => { const k = document.getElementById('mail-key'); if(k) k.focus(); }, 80);
@@ -3765,11 +3833,33 @@ function abrirBuzon(){
 
 function volverAtras(){
   const st = document.getElementById('mail-wrap').dataset.state;
-  if(st === 'read' || st === 'write'){
-    if(st === 'write') guardarBorrador(true);
+  if(st === 'write'){ salirGuardando(); return; }
+  if(st === 'read'){
     setMailState('list'); pintarLista();
     if(MAIL.foco && MAIL.foco.isConnected) { try{ MAIL.foco.focus(); }catch(e){} }
   } else setPanelView('');
+}
+
+// Salir de la carta guardandola, y DECIRLO. Un borrador que se guarda
+// en silencio se lee como un borrador perdido: al volver al jardin no
+// hay forma de saber si lo escrito sigue ahi.
+function salirGuardando(){
+  cerrarConfirmEnvio();
+  const guardado = guardarBorrador(true);
+  setMailState('list'); pintarLista();
+  const st = document.getElementById('mail-list-status');
+  st.className = 'mail-status' + (guardado ? ' ok' : '');
+  st.textContent = guardado ? t('mail_guardado') : '';
+  if(MAIL.foco && MAIL.foco.isConnected) { try{ MAIL.foco.focus(); }catch(e){} }
+}
+
+function cerrarConfirmEnvio(){
+  clearTimeout(MAIL.confTimer);
+  MAIL.confirmando = false;
+  const b = document.getElementById('mail-send');
+  const g = document.getElementById('mail-guardar');
+  if(b) b.textContent = t('mail_send');
+  if(g) g.hidden = true;
 }
 
 // ── entrar ───────────────────────────────────────────────────
@@ -3787,6 +3877,12 @@ async function entrar(){
     inp.value = ''; st.textContent = '';
     setMailState('list');
     pintarLista(); cargarLista(); procesarSalida();
+    if(MAIL.pendiente){
+      const id = MAIL.pendiente;
+      MAIL.pendiente = null;
+      limpiarEnlace();
+      abrirCarta(id);
+    }
   }catch(e){
     st.className = 'mail-status err';
     st.textContent = e.status === 429 ? t('mail_lock_wait')
@@ -3856,14 +3952,17 @@ async function cargarLista(){
   if(MAIL.cargando || !MAIL.token) return;
   MAIL.cargando = true;
   const st = document.getElementById('mail-list-status');
+  const mio = MAIL.items.length ? t('mail_refreshing') : t('mail_loading');
   st.className = 'mail-status';
-  st.textContent = MAIL.items.length ? t('mail_refreshing') : t('mail_loading');
+  st.textContent = mio;
   try{
     const d = await mailFetch('/cartas');
     MAIL.items = d.cartas || [];
     store.set(K_CACHE, { items: MAIL.items, ts: Date.now() });
     MAIL.ultimaCarga = Date.now();
-    st.textContent = '';
+    // Solo se borra el aviso propio: mientras la lista se refrescaba,
+    // abrir una carta compartida pudo dejar aqui algo que decir.
+    if(st.textContent === mio) st.textContent = '';
     await refrescarResumen();
   }catch(e){
     st.className = 'mail-status err';
@@ -3919,6 +4018,23 @@ function tarjetaCarta(c){
   return b;
 }
 
+// El sobre y, pegado a el, su enlace. El borrador y la bandeja de
+// salida no llevan: todavia no existen fuera de este telefono.
+function filaCarta(c){
+  const fila = document.createElement('div');
+  fila.className = 'mail-fila';
+  fila.appendChild(tarjetaCarta(c));
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'mail-share';
+  b.textContent = t('mail_share_icono');
+  b.title = t('mail_share_aria');
+  b.setAttribute('aria-label', t('mail_share_aria'));
+  b.addEventListener('click', () =>
+    compartirCarta(c, document.getElementById('mail-list-status')));
+  fila.appendChild(b);
+  return fila;
+}
+
 function tarjetaSimple(clase, arriba, fecha, linea, onClick, extra){
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'mail-card ' + clase;
@@ -3944,35 +4060,123 @@ function pintarLista(){
   if(!cont) return;
   cont.innerHTML = '';        // aqui solo hay tarjetas: ningun <textarea> que destruir
   const frag = document.createDocumentFragment();
+  const arch = MAIL.verArchivadas;
 
-  const borr = store.get(K_DRAFT);
-  if(borr && borr.cuerpo && borr.cuerpo.trim()){
-    frag.appendChild(tarjetaSimple('draft', t('mail_mia'), fechaCorta(borr.ts || Date.now()),
-      t('mail_draft'), () => nuevaCarta()));
+  // El borrador y la bandeja de salida son del buzon: en el archivo
+  // solo hay cartas que ya viajaron.
+  if(!arch){
+    const borr = store.get(K_DRAFT);
+    if(borr && borr.cuerpo && borr.cuerpo.trim()){
+      frag.appendChild(tarjetaSimple('draft', t('mail_mia'), fechaCorta(borr.ts || Date.now()),
+        t('mail_draft'), () => nuevaCarta()));
+    }
+    (store.get(K_OUT) || []).filter(it => !it.quien || it.quien === MAIL.quien).forEach(it => {
+      const linea = it.fallo ? it.fallo : t('mail_queued');
+      const extra = document.createElement('span');
+      extra.className = 'mail-card-top';
+      const r = document.createElement('span'); r.textContent = t('mail_retry');
+      extra.appendChild(r);
+      frag.appendChild(tarjetaSimple('mia pending', t('mail_mia'), t('mail_sending'),
+        linea, () => { delete it.fallo; guardarCola(it); procesarSalida(); }, extra));
+    });
   }
-  (store.get(K_OUT) || []).filter(it => !it.quien || it.quien === MAIL.quien).forEach(it => {
-    const linea = it.fallo ? it.fallo : t('mail_queued');
-    const extra = document.createElement('span');
-    extra.className = 'mail-card-top';
-    const r = document.createElement('span'); r.textContent = t('mail_retry');
-    extra.appendChild(r);
-    frag.appendChild(tarjetaSimple('mia pending', t('mail_mia'), t('mail_sending'),
-      linea, () => { delete it.fallo; guardarCola(it); procesarSalida(); }, extra));
-  });
-  MAIL.items.forEach(c => frag.appendChild(tarjetaCarta(c)));
+  MAIL.items.filter(c => !!c.archivada === arch)
+            .forEach(c => frag.appendChild(filaCarta(c)));
 
+  sincronizarArchivo();
   if(!frag.childNodes.length){
     const p = document.createElement('p');
-    p.className = 'mail-vacio'; p.textContent = t('mail_vacio');
+    p.className = 'mail-vacio'; p.textContent = arch ? t('mail_arch_vacio') : t('mail_vacio');
     cont.appendChild(p);
     return;
   }
   cont.appendChild(frag);
 }
 
+// El boton del archivo no existe hasta que hay algo archivado: una
+// carpeta vacia a la vista es un boton que no lleva a ninguna parte.
+function sincronizarArchivo(){
+  const b = document.getElementById('mail-arch');
+  if(!b) return;
+  const n = MAIL.items.filter(c => c.archivada).length;
+  b.textContent = MAIL.verArchivadas ? t('mail_arch_salir') : (t('mail_arch_ver') + n);
+  b.toggleAttribute('hidden', !MAIL.verArchivadas && !n);
+}
+
 function guardarCola(item){
   const cola = (store.get(K_OUT) || []).map(x => x.clientId === item.clientId ? item : x);
   store.set(K_OUT, cola);
+}
+
+// ── compartir ────────────────────────────────────────────────
+// Un enlace a UNA carta, no una puerta trasera: la direccion solo dice
+// cual abrir, y el buzon sigue pidiendo la fecha de nacimiento igual
+// que siempre. Quien entre con ella entra al buzon entero, asi que
+// detras de esa carta estan todas las demas.
+const JARDIN_URL = MAIL_ORIGEN + '/YulizetRamirezLeal/';
+const enlaceCarta = id => JARDIN_URL + '#carta=' + encodeURIComponent(id);
+
+// El id viaja en el fragmento (#), que NO se envia al servidor: no
+// acaba en los registros del Worker ni en el Referer de nadie.
+function cartaDelEnlace(){
+  const m = /^#carta=([\w-]{1,64})$/.exec(location.hash || '');
+  return m ? m[1] : null;
+}
+function limpiarEnlace(){
+  // La carta ya esta abierta: dejar el #carta= en la barra haria que
+  // copiar la direccion mientras se lee OTRA carta enlazara a esta.
+  try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}
+}
+
+async function compartirCarta(c, st){
+  if(!c || !c.id) return;
+  const url = enlaceCarta(c.id);
+  // De una carta sellada solo se puede contar lo que se lee por fuera
+  // del sobre; de una abierta, su titulo. Nunca el cuerpo.
+  const linea = (c.sellada ? c.sobre : c.titulo) || t('mail_share_titulo');
+  st.className = 'mail-status';
+  // navigator.share EXIGE salir del toque: nada de await antes de el
+  try{
+    if(navigator.share){
+      await navigator.share({ title: t('mail_share_titulo'), text: linea, url });
+      st.textContent = '';
+      return;
+    }
+  }catch(e){
+    if(e && e.name === 'AbortError'){ st.textContent = ''; return; }   // cerro la hoja de compartir
+  }
+  try{
+    // writeText se queda colgada en algunos navegadores esperando un
+    // permiso que nadie llega a ver. Sin este plazo, el boton no diria
+    // nada nunca: ni copiado, ni fallo, ni el enlace.
+    await Promise.race([
+      navigator.clipboard.writeText(url),
+      new Promise((_, no) => setTimeout(() => no(new Error('tarda')), 2000)),
+    ]);
+    st.className = 'mail-status ok';
+    st.textContent = t('mail_share_copiado');
+  }catch(e){
+    // sin portapapeles (http, Safari viejo) el enlace se enseña entero
+    // para copiarlo a mano: mejor feo que nada
+    st.textContent = t('mail_share_manual') + url;
+  }
+}
+
+// Al llegar por un enlace: se abre el buzon, se pide la fecha si hace
+// falta y en cuanto hay sesion se abre ESA carta. La lista queda
+// detras, asi que «volver» lleva a todas las demas.
+function abrirCompartida(){
+  if(!MAIL.pendiente) return;
+  setPanelView('cartas');
+  if(!MAIL.token){
+    const st = document.getElementById('mail-lock-status');
+    st.className = 'mail-status'; st.textContent = t('mail_share_espera');
+    return;                      // entrar() la abre en cuanto acierte la fecha
+  }
+  const id = MAIL.pendiente;
+  MAIL.pendiente = null;
+  limpiarEnlace();
+  abrirCarta(id);
 }
 
 // ── leer ─────────────────────────────────────────────────────
@@ -4000,6 +4204,9 @@ async function abrirCarta(id, foco){
     st.className = 'mail-status err';
     if(e.status === 423 && e.data){
       st.textContent = t('mail_sellada') + ' · ' + fechaLarga(e.data.abre) + ' · ' + cuentaAtras(e.data.abre);
+    }else if(e.status === 404){
+      // enlace a una carta retirada, o de un buzon que no es este
+      st.textContent = t('mail_share_no');
     }else{
       st.textContent = (navigator.onLine === false) ? t('mail_offline') : t('mail_err');
     }
@@ -4010,7 +4217,8 @@ function guardarLeida(d){
   const g = store.get(K_LEIDAS) || {};
   g[d.id] = { id:d.id, de:d.de, para:d.para, titulo:d.titulo, cuerpo:d.cuerpo,
               lugar:d.lugar, saludo:d.saludo, despedida:d.despedida, firma:d.firma,
-              creada:d.creada, abre:d.abre, abierta_en:d.abierta_en, fotos:d.fotos || [] };
+              creada:d.creada, abre:d.abre, abre_el:d.abre_el, sobre:d.sobre,
+              abierta_en:d.abierta_en, archivada:!!d.archivada, fotos:d.fotos || [] };
   const ids = Object.keys(g);
   if(ids.length > 40) delete g[ids[0]];
   store.set(K_LEIDAS, g);
@@ -4061,12 +4269,21 @@ function pintarCarta(d){
   fi.hidden = !d.firma;
 
   // Se retira solo lo propio y solo mientras no lo haya abierto: en
-  // cuanto lo lee, la carta es suya y ya no se puede deshacer.
-  const bot = document.getElementById('mail-retirar');
+  // cuanto lo lee, la carta es suya y ya no se puede deshacer. Lo
+  // mismo para devolverla a borrador, que es retirarla sin perderla.
+  const bot  = document.getElementById('mail-retirar');
+  const bBor = document.getElementById('mail-borrador');
   const puedeRetirar = mia && !d.abierta_en;
   bot.toggleAttribute('hidden', !puedeRetirar);
+  bBor.toggleAttribute('hidden', !puedeRetirar);
   MAIL.confirmandoRetiro = false;
-  bot.textContent = t('mail_retirar');
+  MAIL.confirmandoBorr = false;
+  bot.textContent  = t('mail_retirar');
+  bBor.textContent = t('mail_a_borrador');
+  // Archivar no borra ni cambia nada: se puede siempre, y con
+  // cualquier carta, la haya escrito quien la haya escrito.
+  document.getElementById('mail-archivar').textContent =
+    d.archivada ? t('mail_desarchivar') : t('mail_archivar');
 
   let pie = t('mail_escrita') + fechaHora(d.creada);
   if(d.abre && d.abre > ahoraSrv()) pie += '\n' + t('mail_se_abre') + fechaLarga(d.abre) + ' · ' + cuentaAtras(d.abre);
@@ -4132,13 +4349,15 @@ function limpiarEscritura(){
   st.className = 'mail-status'; st.textContent = '';
 }
 
+// Devuelve si quedo algo guardado: quien vuelve a la lista tiene que
+// poder leer «guardado como borrador» solo cuando es verdad.
 function guardarBorrador(ya){
   clearTimeout(MAIL.borrTimer);
   const hacer = () => {
     const cuerpo = document.getElementById('mail-text').value;
     const titulo = document.getElementById('mail-titulo').value;
     const w = document.getElementById('mail-when');
-    if(!cuerpo.trim() && !titulo.trim()){ store.del(K_DRAFT); return; }
+    if(!cuerpo.trim() && !titulo.trim()){ store.del(K_DRAFT); return false; }
     store.set(K_DRAFT, {
       cuerpo, titulo,
       lugar: document.getElementById('mail-lugar').value,
@@ -4150,8 +4369,16 @@ function guardarBorrador(ya){
       fotos: MAIL.fotos.filter(f => f.id).map(f => ({ id:f.id, ancho:f.ancho, alto:f.alto })),
       ts: Date.now(),
     });
+    return true;
   };
-  if(ya) hacer(); else MAIL.borrTimer = setTimeout(hacer, 400);
+  if(ya) return hacer();
+  MAIL.borrTimer = setTimeout(hacer, 400);
+  return false;
+}
+
+function hayBorrador(){
+  const b = store.get(K_DRAFT);
+  return !!(b && ((b.cuerpo && b.cuerpo.trim()) || (b.titulo && b.titulo.trim())));
 }
 
 function pintarThumbs(){
@@ -4305,17 +4532,17 @@ async function enviar(){
     st.className = 'mail-status'; st.textContent = t('mail_foto_sube'); return;
   }
   // Dos toques en vez de un confirm(): sellar no tiene vuelta atras.
+  // Y en el segundo toque aparece la otra salida, porque dudar delante
+  // del sello no deberia obligar a enviar ni a perder lo escrito.
   if(!MAIL.confirmando){
     MAIL.confirmando = true;
     btn.textContent = t('mail_send_sure');
+    document.getElementById('mail-guardar').hidden = false;
     clearTimeout(MAIL.confTimer);
-    MAIL.confTimer = setTimeout(() => {
-      MAIL.confirmando = false; btn.textContent = t('mail_send');
-    }, 6000);
+    MAIL.confTimer = setTimeout(cerrarConfirmEnvio, 8000);
     return;
   }
-  clearTimeout(MAIL.confTimer);
-  MAIL.confirmando = false; btn.textContent = t('mail_send');
+  cerrarConfirmEnvio();
 
   const w = document.getElementById('mail-when');
   const it = {
@@ -4343,6 +4570,14 @@ async function enviar(){
   setMailState('list');
   pintarLista();
   procesarSalida();
+}
+
+// La otra mitad de la confirmacion: lo mismo que «volver», pero
+// dicho con todas las letras y sin salir de la carta por error.
+function guardarComoBorrador(){
+  const st = document.getElementById('mail-w-status');
+  st.className = 'mail-status'; st.textContent = '';
+  salirGuardando();
 }
 
 async function procesarSalida(){
@@ -4400,8 +4635,14 @@ function applyMailLang(){
   $('mail-refresh').textContent = t('mail_refresh');
   $('mail-out').textContent = t('mail_out');
   $('mail-print').textContent = t('mail_print');
+  $('mail-compartir').textContent = t('mail_compartir');
   $('mail-pdf').textContent = t('mail_pdf');
   if(!MAIL.confirmandoRetiro) $('mail-retirar').textContent = t('mail_retirar');
+  if(!MAIL.confirmandoBorr) $('mail-borrador').textContent = t('mail_a_borrador');
+  $('mail-archivar').textContent =
+    (MAIL.leida && MAIL.leida.archivada) ? t('mail_desarchivar') : t('mail_archivar');
+  $('mail-guardar').textContent = t('mail_guardar');
+  sincronizarArchivo();
   $('mail-all').textContent = t('mail_all');
   $('mail-titulo').placeholder = t('mail_ph');
   $('mail-lugar').placeholder     = t('mail_ph_lugar');
@@ -4420,6 +4661,7 @@ function applyMailLang(){
     : t('mail_when_off');
   $('mail-pick').textContent = t('mail_pick');
   if(!MAIL.confirmando) $('mail-send').textContent = t('mail_send');
+  else $('mail-send').textContent = t('mail_send_sure');
   pintarSub();
   if(st === 'list') pintarLista();
   if(st === 'read' && MAIL.leida) pintarCarta(MAIL.leida);
@@ -4694,11 +4936,19 @@ function pdfGuardar(blob, nombre){
   setTimeout(() => { try{ URL.revokeObjectURL(u); }catch(e){} }, 4000);
 }
 
-function pdfNombre(c){
-  const f = new Date(c.creada).toISOString().slice(0, 10);
-  const tit = String(c.titulo || '').replace(/[^\w\sáéíóúñÁÉÍÓÚÑ-]/g, '').trim().slice(0, 40);
-  return 'carta ' + f + (tit ? ' · ' + tit : '') + '.pdf';
+// El archivo se llama como la carta. Si tiene título, ESE es el
+// nombre: vale para el PDF que se descarga y para el «guardar como
+// PDF» del navegador al imprimir, que copia el document.title. Sin
+// título queda la fecha, que al menos ordena.
+function nombreCarta(c){
+  const tit = String((c && c.titulo) || '')
+    .replace(/[\x00-\x1f\\/:*?"<>|]/g, ' ')       // lo que ningún sistema admite en un nombre
+    .replace(/\s+/g, ' ')
+    .replace(/^[.\s]+|[.\s]+$/g, '')              // ni empezar ni acabar en punto
+    .slice(0, 80).trim();
+  return tit || ('carta ' + new Date((c && c.creada) || Date.now()).toISOString().slice(0, 10));
 }
+function pdfNombre(c){ return nombreCarta(c) + '.pdf'; }
 
 async function retirarCarta(){
   const bot = document.getElementById('mail-retirar');
@@ -4723,14 +4973,112 @@ async function retirarCarta(){
     MAIL.items = MAIL.items.filter(c => c.id !== id);
     MAIL.leida = null;
     setMailState('list'); pintarLista();
+    await cargarLista();          // primero la lista: si no, borra el aviso al llegar
     const sl = document.getElementById('mail-list-status');
     sl.className = 'mail-status ok'; sl.textContent = t('mail_retirada');
-    cargarLista();
   }catch(e){
     st.style.color = 'var(--err)';
     st.textContent = e.status === 409 ? t('mail_retirar_tarde') : t('mail_err');
     if(e.status === 409) cargarLista();
   }
+}
+
+// ── de vuelta a borrador ─────────────────────────────────────
+// Retirar la borra y ya. Esto la retira y la deja donde estaba antes
+// de sellarla: en el borrador, con su título, su fecha y sus fotos.
+//
+// Las fotos se vuelven a subir ANTES de tocar nada, porque retirar una
+// carta se lleva por delante sus fotos de R2. Y el borrador se escribe
+// ANTES de retirar: si la red se corta a mitad, lo peor que pasa es
+// que la carta siga en el buzón, nunca que no esté en ningún sitio.
+async function devolverABorrador(){
+  const d = MAIL.leida;
+  const bot = document.getElementById('mail-borrador');
+  const st  = document.getElementById('mail-pdf-status');
+  if(!d) return;
+  if(!MAIL.confirmandoBorr){          // dos toques, igual que retirar
+    MAIL.confirmandoBorr = true;
+    bot.textContent = hayBorrador() ? t('mail_a_borrador_pisa') : t('mail_a_borrador_sure');
+    clearTimeout(MAIL.borrConfTimer);
+    MAIL.borrConfTimer = setTimeout(() => {
+      MAIL.confirmandoBorr = false; bot.textContent = t('mail_a_borrador');
+    }, 8000);
+    return;
+  }
+  clearTimeout(MAIL.borrConfTimer);
+  MAIL.confirmandoBorr = false;
+  bot.textContent = t('mail_a_borrador');
+
+  const id = d.id;
+  const previo = store.get(K_DRAFT);
+  st.style.color = ''; st.textContent = t('mail_a_borrador_yendo');
+  try{
+    const fotos = [];
+    for(const f of (d.fotos || [])){
+      const r = await fetch(MAIL_API + '/cartas/' + encodeURIComponent(id) + '/fotos/' + f.n,
+                            { headers:{ Authorization: 'Bearer ' + MAIL.token }, cache:'no-store' });
+      if(!r.ok) throw MailErr('foto', r.status);
+      const b = await r.blob();
+      const nueva = await mailFetch('/fotos', { method:'POST', raw:true, body:b,
+        headers:{ 'Content-Type': b.type || f.tipo || 'image/webp' } });
+      fotos.push({ id:nueva.id, ancho:f.ancho || null, alto:f.alto || null });
+    }
+    const enPie = !!(d.abre_el && d.abre > ahoraSrv());   // ¿su día sigue por llegar?
+    store.set(K_DRAFT, {
+      cuerpo: d.cuerpo || '',
+      titulo: d.titulo || '',
+      lugar: d.lugar || '',
+      saludo: d.saludo || '',
+      despedida: d.despedida || '',
+      firma: d.firma || '',
+      abre_el: enPie ? d.abre_el : null,
+      sobre: enPie ? (d.sobre || '') : '',
+      fotos, ts: Date.now(),
+    });
+    await mailFetch('/cartas/' + encodeURIComponent(id), { method:'DELETE' });
+  }catch(e){
+    if(previo) store.set(K_DRAFT, previo); else store.del(K_DRAFT);
+    st.style.color = 'var(--err)';
+    st.textContent = e.status === 409 ? t('mail_a_borrador_tarde') : t('mail_err');
+    if(e.status === 409) cargarLista();
+    return;
+  }
+  const g = store.get(K_LEIDAS) || {}; delete g[id]; store.set(K_LEIDAS, g);
+  MAIL.items = MAIL.items.filter(c => c.id !== id);
+  store.set(K_CACHE, { items: MAIL.items, ts: Date.now() });
+  MAIL.leida = null;
+  MAIL.verArchivadas = false;
+  setMailState('list'); pintarLista();
+  await cargarLista();            // primero la lista: si no, borra el aviso al llegar
+  const sl = document.getElementById('mail-list-status');
+  sl.className = 'mail-status ok'; sl.textContent = t('mail_a_borrador_ok');
+}
+
+// ── archivar ─────────────────────────────────────────────────
+// La carta no se toca: el archivo es una marca aparte y de quien la
+// archiva. La otra persona sigue viendo la suya en su buzón, y esto
+// se deshace siempre, también con las cartas ya leídas.
+async function alternarArchivo(){
+  const d = MAIL.leida;
+  const st = document.getElementById('mail-pdf-status');
+  if(!d) return;
+  const quiero = !d.archivada;
+  st.style.color = ''; st.textContent = '';
+  try{
+    await mailFetch('/cartas/' + encodeURIComponent(d.id) + '/archivo',
+                    { method: quiero ? 'POST' : 'DELETE' });
+  }catch(e){
+    st.style.color = 'var(--err)'; st.textContent = t('mail_err');
+    return;
+  }
+  d.archivada = quiero;
+  guardarLeida(d);
+  const it = MAIL.items.filter(c => c.id === d.id)[0];
+  if(it){ it.archivada = quiero; store.set(K_CACHE, { items: MAIL.items, ts: Date.now() }); }
+  setMailState('list'); pintarLista();
+  const sl = document.getElementById('mail-list-status');
+  sl.className = 'mail-status ok';
+  sl.textContent = quiero ? t('mail_archivada') : t('mail_desarchivada');
 }
 
 async function descargarCartaPDF(){
@@ -4783,6 +5131,10 @@ function arrancarBuzon(){
     if(MAIL.token){ refrescarResumen(); procesarSalida(); }
     else refrescarAviso();
   }, 1500);
+
+  // Si se llego por un enlace a una carta, el buzon se abre solo.
+  MAIL.pendiente = cartaDelEnlace();
+  if(MAIL.pendiente) abrirCompartida();
 }
 
 // Nada de setInterval: al volver a la pestaña y al abrir el buzon basta.
@@ -4804,6 +5156,15 @@ window.addEventListener('popstate', () => {
     volverAtras();
     try{ history.pushState({buzon:1}, ''); }catch(e){}
   } else setPanelView('');
+});
+
+// Pegar un enlace en la pestaña que ya esta abierta no recarga la
+// pagina: solo cambia el #, y la carta tiene que abrirse igual.
+window.addEventListener('hashchange', () => {
+  const id = cartaDelEnlace();
+  if(!id) return;
+  MAIL.pendiente = id;
+  abrirCompartida();
 });
 
 // ── cableado ─────────────────────────────────────────────────
@@ -4876,21 +5237,37 @@ function listoParaImprimir(){
   const w = document.getElementById('mail-wrap');
   return vistaActual() === 'cartas' && w && w.dataset.state === 'read';
 }
+// El «guardar como PDF» del diálogo de imprimir propone el nombre del
+// document.title, así que mientras dura la impresión el título de la
+// pestaña ES el de la carta. Se devuelve al del jardín al terminar.
+const TITULO_JARDIN = document.title;
+function marcarImpresion(on){
+  document.documentElement.classList.toggle('imprimiendo-carta', on);
+  document.title = (on && MAIL.leida) ? nombreCarta(MAIL.leida) : TITULO_JARDIN;
+}
 // beforeprint cubre tanto el botón como el Cmd+P del navegador
-window.addEventListener('beforeprint', () => {
-  document.documentElement.classList.toggle('imprimiendo-carta', listoParaImprimir());
-});
-window.addEventListener('afterprint', () => {
-  document.documentElement.classList.remove('imprimiendo-carta');
+window.addEventListener('beforeprint', () => marcarImpresion(listoParaImprimir()));
+window.addEventListener('afterprint',  () => marcarImpresion(false));
+document.getElementById('mail-compartir').addEventListener('click', () => {
+  compartirCarta(MAIL.leida, document.getElementById('mail-pdf-status'));
 });
 document.getElementById('mail-print').addEventListener('click', () => {
   // Safari en iOS no siempre dispara beforeprint: se pone a mano también
-  document.documentElement.classList.toggle('imprimiendo-carta', listoParaImprimir());
+  marcarImpresion(listoParaImprimir());
   try{ window.print(); }catch(e){}
-  setTimeout(() => document.documentElement.classList.remove('imprimiendo-carta'), 1500);
+  setTimeout(() => marcarImpresion(false), 1500);
 });
 document.getElementById('mail-pdf').addEventListener('click', descargarCartaPDF);
 document.getElementById('mail-retirar').addEventListener('click', retirarCarta);
+document.getElementById('mail-borrador').addEventListener('click', devolverABorrador);
+document.getElementById('mail-archivar').addEventListener('click', alternarArchivo);
+document.getElementById('mail-guardar').addEventListener('click', guardarComoBorrador);
+document.getElementById('mail-arch').addEventListener('click', () => {
+  MAIL.verArchivadas = !MAIL.verArchivadas;
+  const st = document.getElementById('mail-list-status');
+  st.className = 'mail-status'; st.textContent = '';
+  pintarLista();
+});
 document.getElementById('mail-all').addEventListener('click', descargarTodoPDF);
 document.getElementById('mail-send').addEventListener('click', enviar);
 document.getElementById('mail-text').addEventListener('input', () => { contarLetras(); guardarBorrador(); });
